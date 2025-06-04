@@ -17,56 +17,96 @@ export default function App() {
   const [currentInput, setCurrentInput] = useState("");
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleNext = async () => {
-    // Save current answer
-    const updatedAnswers = {
-      ...answers,
-      [questions[step].id]: currentInput,
-    };
-    setAnswers(updatedAnswers);
+    try {
+      setError("");
+      
+      // Save current answer with the current input
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
+      
+      setAnswers(updatedAnswers);
 
-    if (step === questions.length - 1) {
-      // Last question - generate prompt
-      setLoading(true);
-      try {
+      if (step === questions.length - 1) {
+        // Last question - generate prompt
+        setLoading(true);
+        
+        // Log what we're sending to help debug
+        console.log("Sending to Pipedream:", JSON.stringify(updatedAnswers, null, 2));
+        
+        // Create form data exactly as expected
+        const dataToSend = {
+          task: updatedAnswers.task || "",
+          audience: updatedAnswers.audience || "",
+          tone: updatedAnswers.tone || "",
+          include: updatedAnswers.include || "",
+          avoid: updatedAnswers.avoid || "",
+          format: updatedAnswers.format || "",
+          context: updatedAnswers.context || ""
+        };
+        
+        console.log("Formatted data:", JSON.stringify(dataToSend, null, 2));
+        
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedAnswers),
+          headers: { 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataToSend),
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const responseText = await response.text();
+        console.log("Raw response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Failed to parse response:", e);
+          throw new Error("Invalid response from server");
         }
         
-        const data = await response.json();
-        const prompt = data.finalPrompt || "Something went wrong. Try again!";
-        setFinalPrompt(prompt);
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setFinalPrompt("Something went wrong. Try again.");
-      } finally {
-        setLoading(false);
+        if (data.finalPrompt) {
+          setFinalPrompt(data.finalPrompt);
+        } else {
+          // If we get the template back, show it anyway
+          setFinalPrompt(responseText);
+        }
+      } else {
+        // Move to next question
+        setStep(step + 1);
+        setCurrentInput(answers[questions[step + 1]?.id] || "");
       }
-    } else {
-      // Move to next question
-      setStep(step + 1);
-      // Set the input to the previously saved answer for the next question (if any)
-      setCurrentInput(answers[questions[step + 1].id] || "");
+    } catch (err) {
+      console.error("Error details:", err);
+      setError(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleBack = () => {
     if (step > 0) {
+      // Save current answer before going back
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
+      setAnswers(updatedAnswers);
+      
       setStep(step - 1);
-      // Load the previous answer
-      setCurrentInput(answers[questions[step - 1].id] || "");
+      setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
     }
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(finalPrompt);
+    navigator.clipboard.writeText(finalPrompt)
+      .then(() => alert("Prompt copied to clipboard!"))
+      .catch(() => alert("Failed to copy prompt"));
   };
 
   const startOver = () => {
@@ -74,12 +114,44 @@ export default function App() {
     setAnswers({});
     setCurrentInput("");
     setFinalPrompt("");
+    setError("");
   };
 
   const current = questions[step];
 
+  // Debug view
+  const showDebug = false; // Set to true to see current state
+
   return (
     <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
+      {showDebug && (
+        <div style={{ 
+          background: "#f0f0f0", 
+          padding: 10, 
+          marginBottom: 20, 
+          fontSize: 12,
+          borderRadius: 8 
+        }}>
+          <strong>Debug Info:</strong><br/>
+          Current Step: {step}<br/>
+          Current Input: {currentInput}<br/>
+          Saved Answers: {JSON.stringify(answers, null, 2)}
+        </div>
+      )}
+      
+      {error && (
+        <div style={{ 
+          background: "#fee", 
+          color: "#c00", 
+          padding: 12, 
+          marginBottom: 20,
+          borderRadius: 8,
+          fontSize: 14
+        }}>
+          {error}
+        </div>
+      )}
+      
       {!finalPrompt ? (
         <div style={{ textAlign: "center" }}>
           <div style={{ marginBottom: 20 }}>

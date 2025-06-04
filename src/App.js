@@ -51,10 +51,12 @@ export default function App() {
         
         console.log("Formatted data:", JSON.stringify(dataToSend, null, 2));
         
+        // Try different approaches to ensure Pipedream receives the data
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
+            "Accept": "application/json",
           },
           body: JSON.stringify(dataToSend),
         });
@@ -62,12 +64,36 @@ export default function App() {
         const responseText = await response.text();
         console.log("Raw response:", responseText);
         
+        // Check if the response is the template (indicating empty data was received)
+        if (responseText.includes("TASK: \nAUDIENCE: \nTONE:")) {
+          console.error("Pipedream received empty data!");
+          console.log("Data we tried to send:", dataToSend);
+          
+          // Try to display what we attempted to send
+          const debugPrompt = `
+DEBUG: Data not received by Pipedream. Here's what we tried to send:
+
+TASK: ${dataToSend.task}
+AUDIENCE: ${dataToSend.audience}
+TONE: ${dataToSend.tone}
+INCLUDE: ${dataToSend.include}
+AVOID: ${dataToSend.avoid}
+FORMAT: ${dataToSend.format}
+CONTEXT: ${dataToSend.context}
+
+Check the browser console for more details.`;
+          setFinalPrompt(debugPrompt);
+          return;
+        }
+        
         let data;
         try {
           data = JSON.parse(responseText);
         } catch (e) {
           console.error("Failed to parse response:", e);
-          throw new Error("Invalid response from server");
+          // If it's not JSON, just use the text as is
+          setFinalPrompt(responseText);
+          return;
         }
         
         if (data.finalPrompt) {
@@ -122,6 +148,39 @@ export default function App() {
   // Debug view
   const showDebug = false; // Set to true to see current state
 
+  // Test function to send sample data
+  const testAPI = async () => {
+    try {
+      const testData = {
+        task: "Write a blog post",
+        audience: "Tech professionals",
+        tone: "Professional but friendly",
+        include: "Statistics and examples",
+        avoid: "Technical jargon",
+        format: "Blog post with headers",
+        context: "Company blog"
+      };
+      
+      console.log("Testing API with:", JSON.stringify(testData, null, 2));
+      
+      const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(testData),
+      });
+      
+      const responseText = await response.text();
+      console.log("Test response:", responseText);
+      alert("Check console for test results");
+    } catch (err) {
+      console.error("Test error:", err);
+      alert("Test failed: " + err.message);
+    }
+  };
+
   return (
     <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
       {showDebug && (
@@ -138,6 +197,24 @@ export default function App() {
           Saved Answers: {JSON.stringify(answers, null, 2)}
         </div>
       )}
+      
+      {/* Test Button for API */}
+      <div style={{ marginBottom: 20, textAlign: "center" }}>
+        <button
+          onClick={testAPI}
+          style={{
+            background: "#666",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: 4,
+            border: "none",
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+        >
+          Test API Connection
+        </button>
+      </div>
       
       {error && (
         <div style={{ 

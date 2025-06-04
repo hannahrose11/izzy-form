@@ -187,39 +187,6 @@ Check the browser console for more details.`;
 
   return (
     <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
-      {showDebug && (
-        <div style={{ 
-          background: "#f0f0f0", 
-          padding: 10, 
-          marginBottom: 20, 
-          fontSize: 12,
-          borderRadius: 8 
-        }}>
-          <strong>Debug Info:</strong><br/>
-          Current Step: {step}<br/>
-          Current Input: {currentInput}<br/>
-          Saved Answers: {JSON.stringify(answers, null, 2)}
-        </div>
-      )}
-      
-      {/* Test Button for API */}
-      <div style={{ marginBottom: 20, textAlign: "center" }}>
-        <button
-          onClick={testAPI}
-          style={{
-            background: "#666",
-            color: "white",
-            padding: "8px 16px",
-            borderRadius: 4,
-            border: "none",
-            fontSize: 12,
-            cursor: "pointer",
-          }}
-        >
-          Test API Connection
-        </button>
-      </div>
-      
       {error && (
         <div style={{ 
           background: "#fee", 

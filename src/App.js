@@ -89,6 +89,7 @@ Check the browser console for more details.`;
         let data;
         try {
           data = JSON.parse(responseText);
+          console.log("Parsed response:", data);
         } catch (e) {
           console.error("Failed to parse response:", e);
           // If it's not JSON, just use the text as is
@@ -98,6 +99,9 @@ Check the browser console for more details.`;
         
         if (data.finalPrompt) {
           setFinalPrompt(data.finalPrompt);
+        } else if (data.body && data.body.finalPrompt) {
+          // Sometimes the response is nested
+          setFinalPrompt(data.body.finalPrompt);
         } else {
           // If we get the template back, show it anyway
           setFinalPrompt(responseText);

@@ -18,23 +18,34 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
+    const inputEl = document.querySelector("textarea");
+    const currentAnswer = inputEl ? inputEl.value : "";
+    const updatedAnswers = {
+      ...answers,
+      [questions[step].id]: currentAnswer,
+    };
+
     if (step === questions.length - 1) {
       setLoading(true);
-      const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
-      });
-      const data = await response.json();
-      setFinalPrompt(data.finalPrompt);
-      setLoading(false);
+      try {
+        const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedAnswers),
+        });
+        const data = await response.json();
+        const prompt = data.finalPrompt || "Something went wrong. Try again!";
+        setFinalPrompt(prompt);
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setFinalPrompt("Something went wrong. Try again.");
+      } finally {
+        setLoading(false);
+      }
     } else {
+      setAnswers(updatedAnswers);
       setStep(step + 1);
     }
-  };
-
-  const handleChange = (e) => {
-    setAnswers({ ...answers, [questions[step].id]: e.target.value });
   };
 
   const copyPrompt = () => {
@@ -60,8 +71,7 @@ export default function App() {
               borderRadius: 8,
               border: "1px solid #ccc",
             }}
-            value={answers[current.id] || ""}
-            onChange={handleChange}
+            defaultValue={answers[current.id] || ""}
           />
           <button
             onClick={handleNext}
@@ -121,4 +131,3 @@ export default function App() {
     </div>
   );
 }
-

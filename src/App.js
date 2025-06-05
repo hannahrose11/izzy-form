@@ -74,12 +74,24 @@ export default function App() {
 
   if (finalPrompt) {
     return (
-      <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px", textAlign: "center" }}>
-        <h2 style={{ fontSize: "20px", marginBottom: "12px" }}>Here's your GPT-optimized prompt:</h2>
-        <div style={{ background: "#f6f6f6", padding: "16px", borderRadius: "8px", marginBottom: "16px", textAlign: "left" }}>
-          <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: "14px", lineHeight: "1.4" }}>{finalPrompt}</pre>
-        </div>
-        <div>
+      <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px" }}>
+        <h2 style={{ fontSize: "20px", marginBottom: "12px", textAlign: "center" }}>
+          Here's your GPT-optimized prompt:
+        </h2>
+        <pre style={{ 
+          background: "#f6f6f6", 
+          padding: "16px", 
+          borderRadius: "8px", 
+          marginBottom: "16px",
+          whiteSpace: "pre-wrap", 
+          fontSize: "14px", 
+          lineHeight: "1.4",
+          maxHeight: "400px",
+          overflow: "auto"
+        }}>
+          {finalPrompt}
+        </pre>
+        <div style={{ textAlign: "center" }}>
           <button 
             onClick={copyPrompt} 
             style={{ 
@@ -117,8 +129,8 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px", textAlign: "center" }}>
-      <div style={{ marginBottom: "20px" }}>
+    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px" }}>
+      <div style={{ marginBottom: "20px", textAlign: "center" }}>
         <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
           Question {step + 1} of {questions.length}
         </div>
@@ -132,7 +144,9 @@ export default function App() {
         </div>
       </div>
       
-      <p style={{ fontSize: "18px", marginBottom: "12px" }}>{questions[step].question}</p>
+      <p style={{ fontSize: "18px", marginBottom: "12px", textAlign: "center" }}>
+        {questions[step].question}
+      </p>
       
       <textarea
         id="answer-input"
@@ -141,13 +155,12 @@ export default function App() {
         style={{
           width: "100%",
           maxWidth: "500px",
-          margin: "0 auto",
+          margin: "0 auto 16px auto",
           display: "block",
           padding: "12px",
           fontSize: "16px",
           border: "1px solid #ccc",
           borderRadius: "8px",
-          marginBottom: "16px",
           boxSizing: "border-box",
           resize: "vertical",
           fontFamily: "inherit",
@@ -155,7 +168,7 @@ export default function App() {
         }}
       />
       
-      <div style={{ marginTop: "16px" }}>
+      <div style={{ textAlign: "center", marginTop: "16px" }}>
         {step > 0 && (
           <button 
             onClick={handleBack} 

@@ -110,15 +110,7 @@ export default function App() {
   const current = questions[step];
 
   return (
-    <div style={{ 
-      fontFamily: "Inter, sans-serif", 
-      maxWidth: 600, 
-      margin: "0 auto", 
-      padding: 24,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center"
-    }}>
+    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
       {error && (
         <div style={{ 
           background: "#fee", 
@@ -126,16 +118,15 @@ export default function App() {
           padding: 12, 
           marginBottom: 20,
           borderRadius: 8,
-          fontSize: 14,
-          width: "100%"
+          fontSize: 14
         }}>
           {error}
         </div>
       )}
       
       {!finalPrompt ? (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 20, width: "100%", textAlign: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
               Question {step + 1} of {questions.length}
             </div>
@@ -155,33 +146,36 @@ export default function App() {
             </div>
           </div>
           
-          <p style={{ fontSize: 18, marginBottom: 12, textAlign: "center", width: "100%" }}>
-            {current.question}
-          </p>
-          
+          <p style={{ fontSize: 18, marginBottom: 12 }}>{current.question}</p>
           <textarea
             rows={4}
             style={{
               width: "100%",
               maxWidth: 500,
+              margin: "0 auto",
+              display: "block",
               padding: 12,
               fontSize: 16,
               borderRadius: 8,
               border: "1px solid #ccc",
               resize: "vertical",
-              fontFamily: "inherit",
-              marginBottom: 16
+              WebkitAppearance: "none",
+              appearance: "none",
             }}
             value={currentInput}
             onChange={(e) => setCurrentInput(e.target.value)}
             placeholder="Type your answer here..."
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
           />
           
-          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <div style={{ marginTop: 16 }}>
             {step > 0 && (
               <button
                 onClick={handleBack}
                 style={{
+                  marginRight: 8,
                   background: "#f0f0f0",
                   color: "#333",
                   padding: "10px 20px",
@@ -212,10 +206,8 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <h2 style={{ fontSize: 20, marginBottom: 12, textAlign: "center" }}>
-            Here's your GPT-optimized prompt:
-          </h2>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ fontSize: 20, marginBottom: 12 }}>Here's your GPT-optimized prompt:</h2>
           <pre style={{ 
             background: "#f6f6f6", 
             padding: 16, 
@@ -223,17 +215,15 @@ export default function App() {
             whiteSpace: "pre-wrap", 
             textAlign: "left",
             maxHeight: 400,
-            overflow: "auto",
-            width: "100%",
-            maxWidth: 500,
-            marginBottom: 16
+            overflow: "auto"
           }}>
             {finalPrompt}
           </pre>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <div style={{ marginTop: 16 }}>
             <button
               onClick={copyPrompt}
               style={{
+                marginRight: 8,
                 background: "#00C2A8",
                 color: "white",
                 padding: "10px 16px",

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function App() {
   const questions = [
@@ -18,6 +18,19 @@ export default function App() {
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const textareaRef = useRef(null);
+
+  // Prevent zoom on input focus for iOS
+  useEffect(() => {
+    const handleFocus = (e) => {
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+        e.target.style.fontSize = '16px';
+      }
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    return () => document.removeEventListener('focusin', handleFocus);
+  }, []);
 
   const handleNext = async () => {
     try {
@@ -110,6 +123,12 @@ Check the browser console for more details.`;
         // Move to next question
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
+        // Focus on textarea after state update
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+          }
+        }, 100);
       }
     } catch (err) {
       console.error("Error details:", err);
@@ -130,6 +149,12 @@ Check the browser console for more details.`;
       
       setStep(step - 1);
       setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
+      // Focus on textarea after state update
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
     }
   };
 
@@ -149,52 +174,34 @@ Check the browser console for more details.`;
 
   const current = questions[step];
 
-  // Debug view
-  const showDebug = false; // Set to true to see current state
-
-  // Test function to send sample data
-  const testAPI = async () => {
-    try {
-      const testData = {
-        task: "Write a blog post",
-        audience: "Tech professionals",
-        tone: "Professional but friendly",
-        include: "Statistics and examples",
-        avoid: "Technical jargon",
-        format: "Blog post with headers",
-        context: "Company blog"
-      };
-      
-      console.log("Testing API with:", JSON.stringify(testData, null, 2));
-      
-      const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(testData),
-      });
-      
-      const responseText = await response.text();
-      console.log("Test response:", responseText);
-      alert("Check console for test results");
-    } catch (err) {
-      console.error("Test error:", err);
-      alert("Test failed: " + err.message);
-    }
+  // Handle textarea focus to ensure visibility on mobile
+  const handleTextareaFocus = (e) => {
+    // Small delay to wait for keyboard to appear
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
   };
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
+    <div style={{ 
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", 
+      maxWidth: 600, 
+      margin: "0 auto", 
+      padding: "24px",
+      minHeight: "100vh",
+      boxSizing: "border-box",
+      WebkitTextSizeAdjust: "100%",
+      textSizeAdjust: "100%",
+    }}>
       {error && (
         <div style={{ 
           background: "#fee", 
           color: "#c00", 
-          padding: 12, 
-          marginBottom: 20,
-          borderRadius: 8,
-          fontSize: 14
+          padding: "12px", 
+          marginBottom: "20px",
+          borderRadius: "8px",
+          fontSize: "14px",
+          boxSizing: "border-box",
         }}>
           {error}
         </div>
@@ -202,15 +209,15 @@ Check the browser console for more details.`;
       
       {!finalPrompt ? (
         <div style={{ textAlign: "center" }}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
               Question {step + 1} of {questions.length}
             </div>
             <div style={{ 
               width: "100%", 
-              height: 8, 
+              height: "8px", 
               background: "#e0e0e0", 
-              borderRadius: 4,
+              borderRadius: "4px",
               overflow: "hidden"
             }}>
               <div style={{ 
@@ -222,38 +229,67 @@ Check the browser console for more details.`;
             </div>
           </div>
           
-          <p style={{ fontSize: 18, marginBottom: 12 }}>{current.question}</p>
+          <p style={{ 
+            fontSize: "18px", 
+            marginBottom: "12px",
+            lineHeight: "1.4",
+            padding: "0 10px",
+          }}>
+            {current.question}
+          </p>
+          
           <textarea
+            ref={textareaRef}
             rows={4}
             style={{
-              width: "100%",
-              maxWidth: 500,
+              width: "calc(100% - 20px)",
+              maxWidth: "500px",
               margin: "0 auto",
               display: "block",
-              padding: 12,
-              fontSize: 16,
-              borderRadius: 8,
+              padding: "12px",
+              fontSize: "16px",
+              lineHeight: "1.4",
+              borderRadius: "8px",
               border: "1px solid #ccc",
               resize: "vertical",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              appearance: "none",
+              boxSizing: "border-box",
+              fontFamily: "inherit",
+              WebkitFontSmoothing: "antialiased",
+              MozOsxFontSmoothing: "grayscale",
+              touchAction: "manipulation",
             }}
             value={currentInput}
             onChange={(e) => setCurrentInput(e.target.value)}
+            onFocus={handleTextareaFocus}
             placeholder="Type your answer here..."
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck="true"
           />
           
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: "16px", padding: "0 10px" }}>
             {step > 0 && (
               <button
                 onClick={handleBack}
                 style={{
-                  marginRight: 8,
+                  marginRight: "8px",
                   background: "#f0f0f0",
                   color: "#333",
-                  padding: "10px 20px",
-                  borderRadius: 8,
+                  padding: "12px 24px",
+                  borderRadius: "8px",
                   border: "none",
                   fontWeight: "bold",
+                  fontSize: "16px",
                   cursor: "pointer",
+                  WebkitAppearance: "none",
+                  MozAppearance: "none",
+                  appearance: "none",
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
                 }}
               >
                 Back
@@ -265,11 +301,17 @@ Check the browser console for more details.`;
               style={{
                 background: currentInput.trim() ? "#FF4D80" : "#ccc",
                 color: "white",
-                padding: "10px 20px",
-                borderRadius: 8,
+                padding: "12px 24px",
+                borderRadius: "8px",
                 border: "none",
                 fontWeight: "bold",
+                fontSize: "16px",
                 cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
               {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
@@ -278,30 +320,48 @@ Check the browser console for more details.`;
         </div>
       ) : (
         <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: 20, marginBottom: 12 }}>Here's your GPT-optimized prompt:</h2>
+          <h2 style={{ 
+            fontSize: "20px", 
+            marginBottom: "12px",
+            padding: "0 10px",
+          }}>
+            Here's your GPT-optimized prompt:
+          </h2>
           <pre style={{ 
             background: "#f6f6f6", 
-            padding: 16, 
-            borderRadius: 8, 
+            padding: "16px", 
+            borderRadius: "8px", 
             whiteSpace: "pre-wrap", 
             textAlign: "left",
-            maxHeight: 400,
-            overflow: "auto"
+            maxHeight: "400px",
+            overflow: "auto",
+            margin: "0 10px",
+            fontSize: "14px",
+            lineHeight: "1.4",
+            WebkitOverflowScrolling: "touch",
+            boxSizing: "border-box",
           }}>
             {finalPrompt}
           </pre>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: "16px", padding: "0 10px" }}>
             <button
               onClick={copyPrompt}
               style={{
-                marginRight: 8,
+                marginRight: "8px",
+                marginBottom: "8px",
                 background: "#00C2A8",
                 color: "white",
-                padding: "10px 16px",
-                borderRadius: 8,
+                padding: "12px 20px",
+                borderRadius: "8px",
                 border: "none",
                 fontWeight: "bold",
+                fontSize: "16px",
                 cursor: "pointer",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
               Copy Prompt
@@ -309,31 +369,39 @@ Check the browser console for more details.`;
             <button
               onClick={startOver}
               style={{
-                marginRight: 8,
+                marginRight: "8px",
+                marginBottom: "8px",
                 background: "#f0f0f0",
                 color: "#333",
-                padding: "10px 16px",
-                borderRadius: 8,
+                padding: "12px 20px",
+                borderRadius: "8px",
                 border: "none",
                 fontWeight: "bold",
+                fontSize: "16px",
                 cursor: "pointer",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
               Start Over
             </button>
           </div>
           
-          <div style={{ marginTop: 16 }}>
-            <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Open in:</p>
+          <div style={{ marginTop: "16px", padding: "0 10px" }}>
+            <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>Open in:</p>
             <a
               href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ 
-                marginRight: 8,
+                marginRight: "8px",
                 color: "#FF4D80",
                 textDecoration: "none",
-                fontWeight: "bold"
+                fontWeight: "bold",
+                fontSize: "16px",
               }}
             >
               ChatGPT
@@ -344,10 +412,11 @@ Check the browser console for more details.`;
               target="_blank" 
               rel="noopener noreferrer" 
               style={{ 
-                marginRight: 8,
+                marginRight: "8px",
                 color: "#FF4D80",
                 textDecoration: "none",
-                fontWeight: "bold"
+                fontWeight: "bold",
+                fontSize: "16px",
               }}
             >
               Claude
@@ -360,7 +429,8 @@ Check the browser console for more details.`;
               style={{ 
                 color: "#FF4D80",
                 textDecoration: "none",
-                fontWeight: "bold"
+                fontWeight: "bold",
+                fontSize: "16px",
               }}
             >
               Gemini

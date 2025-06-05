@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useState, useRef, useEffect } from "react";
 
 export default function App() {
@@ -9,7 +9,7 @@ export default function App() {
     { id: "include", question: "What details, facts, or ideas absolutely need to be in there?" },
     { id: "avoid", question: "Anything you don't want it to say or sound like?" },
     { id: "format", question: "Are we making a list? An email? A short caption? A table? Something else?" },
-    { id: "context", question: "Where are you using this — like on social media, in a message, printed, or just for your own brain?" },
+    { id: "context", question: "Where are you using this â€” like on social media, in a message, printed, or just for your own brain?" },
   ];
 
   const [step, setStep] = useState(0);
@@ -32,7 +32,7 @@ export default function App() {
     if (editableRef.current) {
       editableRef.current.innerText = currentInput;
     }
-  }, [step]);
+  }, [step, currentInput]);
 
   const handleNext = async () => {
     try {
@@ -378,7 +378,7 @@ CONTEXT: ${dataToSend.context}`;
             >
               ChatGPT
             </a>
-            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+            <span style={{ margin: "0 4px", color: "#ccc" }}>â€¢</span>
             <a 
               href="https://claude.ai" 
               target="_blank" 
@@ -392,7 +392,7 @@ CONTEXT: ${dataToSend.context}`;
             >
               Claude
             </a>
-            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+            <span style={{ margin: "0 4px", color: "#ccc" }}>â€¢</span>
             <a 
               href="https://gemini.google.com" 
               target="_blank" 
@@ -411,3 +411,4 @@ CONTEXT: ${dataToSend.context}`;
     </div>
   );
 }
+

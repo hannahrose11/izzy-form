@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 
 export default function App() {
   const questions = [
@@ -18,44 +18,12 @@ export default function App() {
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isMobile, setIsMobile] = useState(false);
-  const textareaRef = useRef(null);
-
-  // Detect mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Force input to be interactive
-  useEffect(() => {
-    if (textareaRef.current) {
-      // Force enable the textarea
-      textareaRef.current.readOnly = false;
-      textareaRef.current.disabled = false;
-      
-      // Remove any pointer-events styling
-      textareaRef.current.style.pointerEvents = 'auto';
-      textareaRef.current.style.userSelect = 'text';
-      textareaRef.current.style.WebkitUserSelect = 'text';
-      
-      // Ensure it's touchable
-      textareaRef.current.style.touchAction = 'auto';
-      
-      // Force z-index to be on top
-      textareaRef.current.style.position = 'relative';
-      textareaRef.current.style.zIndex = '9999';
-    }
-  });
 
   const handleNext = async () => {
     try {
       setError("");
       
+      // Save current answer with the current input
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -64,8 +32,10 @@ export default function App() {
       setAnswers(updatedAnswers);
 
       if (step === questions.length - 1) {
+        // Last question - generate prompt
         setLoading(true);
         
+        // Create form data exactly as expected
         const dataToSend = {
           task: updatedAnswers.task || "",
           audience: updatedAnswers.audience || "",
@@ -87,6 +57,7 @@ export default function App() {
         
         const responseText = await response.text();
         
+        // Check if the response is the template (indicating empty data was received)
         if (responseText.includes("TASK: \nAUDIENCE: \nTONE:")) {
           const debugPrompt = `
 DEBUG: Data not received by Pipedream. Here's what we tried to send:
@@ -97,7 +68,9 @@ TONE: ${dataToSend.tone}
 INCLUDE: ${dataToSend.include}
 AVOID: ${dataToSend.avoid}
 FORMAT: ${dataToSend.format}
-CONTEXT: ${dataToSend.context}`;
+CONTEXT: ${dataToSend.context}
+
+Check the browser console for more details.`;
           setFinalPrompt(debugPrompt);
           return;
         }
@@ -106,6 +79,7 @@ CONTEXT: ${dataToSend.context}`;
         try {
           data = JSON.parse(responseText);
         } catch (e) {
+          // If it's not JSON, just use the text as is
           setFinalPrompt(responseText);
           return;
         }
@@ -113,11 +87,14 @@ CONTEXT: ${dataToSend.context}`;
         if (data.finalPrompt) {
           setFinalPrompt(data.finalPrompt);
         } else if (data.body && data.body.finalPrompt) {
+          // Sometimes the response is nested
           setFinalPrompt(data.body.finalPrompt);
         } else {
+          // If we get the template back, show it anyway
           setFinalPrompt(responseText);
         }
       } else {
+        // Move to next question
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
       }
@@ -130,6 +107,7 @@ CONTEXT: ${dataToSend.context}`;
 
   const handleBack = () => {
     if (step > 0) {
+      // Save current answer before going back
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -142,42 +120,9 @@ CONTEXT: ${dataToSend.context}`;
   };
 
   const copyPrompt = () => {
-    // Fallback for mobile
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(finalPrompt)
-        .then(() => alert("Prompt copied to clipboard!"))
-        .catch(() => {
-          // Fallback method
-          const textArea = document.createElement("textarea");
-          textArea.value = finalPrompt;
-          textArea.style.position = "fixed";
-          textArea.style.left = "-999999px";
-          document.body.appendChild(textArea);
-          textArea.select();
-          try {
-            document.execCommand('copy');
-            alert("Prompt copied to clipboard!");
-          } catch (err) {
-            alert("Failed to copy prompt");
-          }
-          document.body.removeChild(textArea);
-        });
-    } else {
-      // Fallback method
-      const textArea = document.createElement("textarea");
-      textArea.value = finalPrompt;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-999999px";
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        alert("Prompt copied to clipboard!");
-      } catch (err) {
-        alert("Failed to copy prompt");
-      }
-      document.body.removeChild(textArea);
-    }
+    navigator.clipboard.writeText(finalPrompt)
+      .then(() => alert("Prompt copied to clipboard!"))
+      .catch(() => alert("Failed to copy prompt"));
   };
 
   const startOver = () => {
@@ -190,54 +135,66 @@ CONTEXT: ${dataToSend.context}`;
 
   const current = questions[step];
 
-  // Alternative input method for extreme cases
-  const [useBasicInput, setUseBasicInput] = useState(false);
+  // Mobile-friendly styles
+  const textareaStyle = {
+    width: "100%",
+    padding: "12px",
+    fontSize: "16px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    fontFamily: "inherit",
+    lineHeight: "1.4",
+    WebkitAppearance: "none",
+    appearance: "none",
+    resize: "vertical",
+    boxSizing: "border-box",
+    touchAction: "manipulation",
+  };
+
+  const buttonStyle = {
+    padding: "12px 24px",
+    fontSize: "16px",
+    borderRadius: "8px",
+    border: "none",
+    fontWeight: "bold",
+    cursor: "pointer",
+    WebkitAppearance: "none",
+    appearance: "none",
+    touchAction: "manipulation",
+  };
 
   return (
     <div style={{ 
-      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", 
-      maxWidth: "600px", 
-      width: "100%",
+      fontFamily: "Inter, system-ui, sans-serif", 
+      maxWidth: 600, 
       margin: "0 auto", 
-      padding: "20px",
+      padding: 24,
       boxSizing: "border-box",
     }}>
-      {/* Debug info */}
-      {isMobile && (
-        <div style={{ 
-          fontSize: "12px", 
-          color: "#666", 
-          marginBottom: "10px",
-          textAlign: "center" 
-        }}>
-          Mobile detected • {useBasicInput ? "Basic" : "Standard"} input mode
-        </div>
-      )}
-
       {error && (
         <div style={{ 
           background: "#fee", 
           color: "#c00", 
-          padding: "12px", 
-          marginBottom: "20px",
-          borderRadius: "8px",
-          fontSize: "14px",
+          padding: 12, 
+          marginBottom: 20,
+          borderRadius: 8,
+          fontSize: 14
         }}>
           {error}
         </div>
       )}
       
       {!finalPrompt ? (
-        <div>
-          <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px", textAlign: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
               Question {step + 1} of {questions.length}
             </div>
             <div style={{ 
               width: "100%", 
-              height: "8px", 
+              height: 8, 
               background: "#e0e0e0", 
-              borderRadius: "4px",
+              borderRadius: 4,
               overflow: "hidden"
             }}>
               <div style={{ 
@@ -249,105 +206,28 @@ CONTEXT: ${dataToSend.context}`;
             </div>
           </div>
           
-          <p style={{ 
-            fontSize: "18px", 
-            marginBottom: "16px",
-            textAlign: "center",
-            lineHeight: "1.5",
-          }}>
+          <p style={{ fontSize: 18, marginBottom: 16, lineHeight: 1.4 }}>
             {current.question}
           </p>
-
-          {/* Toggle for basic input if textarea fails */}
-          {isMobile && (
-            <button
-              onClick={() => setUseBasicInput(!useBasicInput)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#666",
-                fontSize: "12px",
-                textDecoration: "underline",
-                marginBottom: "10px",
-                cursor: "pointer",
-                display: "block",
-                margin: "0 auto 10px",
-              }}
-            >
-              Having trouble typing? Click here
-            </button>
-          )}
-
-          {useBasicInput ? (
-            // Basic input as fallback
-            <input
-              type="text"
-              value={currentInput}
-              onChange={(e) => setCurrentInput(e.target.value)}
-              placeholder="Type your answer here..."
-              style={{
-                width: "100%",
-                padding: "12px",
-                fontSize: "16px",
-                border: "2px solid #ddd",
-                borderRadius: "8px",
-                marginBottom: "16px",
-                WebkitAppearance: "none",
-                outline: "none",
-              }}
-            />
-          ) : (
-            // Standard textarea
-            <textarea
-              ref={textareaRef}
-              value={currentInput}
-              onChange={(e) => setCurrentInput(e.target.value)}
-              placeholder="Type your answer here..."
-              rows={4}
-              style={{
-                width: "100%",
-                padding: "12px",
-                fontSize: "16px",
-                lineHeight: "1.5",
-                border: "2px solid #ddd",
-                borderRadius: "8px",
-                resize: "vertical",
-                marginBottom: "16px",
-                fontFamily: "inherit",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-                outline: "none",
-                display: "block",
-                boxSizing: "border-box",
-                backgroundColor: "#fff",
-                color: "#000",
-              }}
-              onTouchStart={(e) => {
-                e.target.focus();
-              }}
-            />
-          )}
           
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "center", 
-            gap: "10px",
-            flexWrap: "wrap" 
-          }}>
+          <textarea
+            rows={4}
+            style={textareaStyle}
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)}
+            placeholder="Type your answer here..."
+            autoComplete="off"
+          />
+          
+          <div style={{ marginTop: 16 }}>
             {step > 0 && (
               <button
                 onClick={handleBack}
                 style={{
-                  padding: "12px 24px",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  border: "2px solid #ddd",
-                  borderRadius: "8px",
-                  background: "#fff",
+                  ...buttonStyle,
+                  marginRight: 8,
+                  background: "#f0f0f0",
                   color: "#333",
-                  cursor: "pointer",
-                  minWidth: "100px",
                 }}
               >
                 Back
@@ -357,15 +237,10 @@ CONTEXT: ${dataToSend.context}`;
               onClick={handleNext}
               disabled={!currentInput.trim() || loading}
               style={{
-                padding: "12px 24px",
-                fontSize: "16px",
-                fontWeight: "600",
-                border: "none",
-                borderRadius: "8px",
+                ...buttonStyle,
                 background: currentInput.trim() ? "#FF4D80" : "#ccc",
-                color: "#fff",
+                color: "white",
                 cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
-                minWidth: "120px",
               }}
             >
               {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
@@ -373,51 +248,31 @@ CONTEXT: ${dataToSend.context}`;
           </div>
         </div>
       ) : (
-        <div>
-          <h2 style={{ 
-            fontSize: "20px", 
-            marginBottom: "16px",
-            textAlign: "center",
-          }}>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ fontSize: 20, marginBottom: 16 }}>
             Here's your GPT-optimized prompt:
           </h2>
-          <div style={{ 
+          <pre style={{ 
             background: "#f6f6f6", 
-            padding: "16px", 
-            borderRadius: "8px", 
-            marginBottom: "16px",
-            maxHeight: "400px",
+            padding: 16, 
+            borderRadius: 8, 
+            whiteSpace: "pre-wrap", 
+            textAlign: "left",
+            maxHeight: 400,
             overflow: "auto",
+            fontSize: 14,
+            lineHeight: 1.4,
           }}>
-            <pre style={{ 
-              whiteSpace: "pre-wrap", 
-              margin: 0,
-              fontSize: "14px",
-              lineHeight: "1.5",
-              fontFamily: "monospace",
-            }}>
-              {finalPrompt}
-            </pre>
-          </div>
-          
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "center", 
-            gap: "10px",
-            flexWrap: "wrap",
-            marginBottom: "20px",
-          }}>
+            {finalPrompt}
+          </pre>
+          <div style={{ marginTop: 16 }}>
             <button
               onClick={copyPrompt}
               style={{
-                padding: "12px 20px",
-                fontSize: "16px",
-                fontWeight: "600",
-                border: "none",
-                borderRadius: "8px",
+                ...buttonStyle,
+                marginRight: 8,
                 background: "#00C2A8",
-                color: "#fff",
-                cursor: "pointer",
+                color: "white",
               }}
             >
               Copy Prompt
@@ -425,65 +280,57 @@ CONTEXT: ${dataToSend.context}`;
             <button
               onClick={startOver}
               style={{
-                padding: "12px 20px",
-                fontSize: "16px",
-                fontWeight: "600",
-                border: "2px solid #ddd",
-                borderRadius: "8px",
-                background: "#fff",
+                ...buttonStyle,
+                background: "#f0f0f0",
                 color: "#333",
-                cursor: "pointer",
               }}
             >
               Start Over
             </button>
           </div>
           
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
-              Open in:
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
-              <a
-                href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ 
-                  color: "#FF4D80",
-                  textDecoration: "none",
-                  fontWeight: "600",
-                  fontSize: "16px",
-                }}
-              >
-                ChatGPT
-              </a>
-              <a 
-                href="https://claude.ai" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ 
-                  color: "#FF4D80",
-                  textDecoration: "none",
-                  fontWeight: "600",
-                  fontSize: "16px",
-                }}
-              >
-                Claude
-              </a>
-              <a 
-                href="https://gemini.google.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  color: "#FF4D80",
-                  textDecoration: "none",
-                  fontWeight: "600",
-                  fontSize: "16px",
-                }}
-              >
-                Gemini
-              </a>
-            </div>
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Open in:</p>
+            <a
+              href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ 
+                marginRight: 8,
+                color: "#FF4D80",
+                textDecoration: "none",
+                fontWeight: "bold"
+              }}
+            >
+              ChatGPT
+            </a>
+            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+            <a 
+              href="https://claude.ai" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{ 
+                marginRight: 8,
+                color: "#FF4D80",
+                textDecoration: "none",
+                fontWeight: "bold"
+              }}
+            >
+              Claude
+            </a>
+            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+            <a 
+              href="https://gemini.google.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ 
+                color: "#FF4D80",
+                textDecoration: "none",
+                fontWeight: "bold"
+              }}
+            >
+              Gemini
+            </a>
           </div>
         </div>
       )}

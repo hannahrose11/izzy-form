@@ -18,25 +18,44 @@ export default function App() {
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const textareaRef = useRef(null);
 
-  // Prevent zoom on input focus for iOS
+  // Detect mobile device
   useEffect(() => {
-    const handleFocus = (e) => {
-      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
-        e.target.style.fontSize = '16px';
-      }
+    const checkMobile = () => {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
     };
-
-    document.addEventListener('focusin', handleFocus);
-    return () => document.removeEventListener('focusin', handleFocus);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Force input to be interactive
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Force enable the textarea
+      textareaRef.current.readOnly = false;
+      textareaRef.current.disabled = false;
+      
+      // Remove any pointer-events styling
+      textareaRef.current.style.pointerEvents = 'auto';
+      textareaRef.current.style.userSelect = 'text';
+      textareaRef.current.style.WebkitUserSelect = 'text';
+      
+      // Ensure it's touchable
+      textareaRef.current.style.touchAction = 'auto';
+      
+      // Force z-index to be on top
+      textareaRef.current.style.position = 'relative';
+      textareaRef.current.style.zIndex = '9999';
+    }
+  });
 
   const handleNext = async () => {
     try {
       setError("");
       
-      // Save current answer with the current input
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -45,13 +64,8 @@ export default function App() {
       setAnswers(updatedAnswers);
 
       if (step === questions.length - 1) {
-        // Last question - generate prompt
         setLoading(true);
         
-        // Log what we're sending to help debug
-        console.log("Sending to Pipedream:", JSON.stringify(updatedAnswers, null, 2));
-        
-        // Create form data exactly as expected
         const dataToSend = {
           task: updatedAnswers.task || "",
           audience: updatedAnswers.audience || "",
@@ -62,9 +76,6 @@ export default function App() {
           context: updatedAnswers.context || ""
         };
         
-        console.log("Formatted data:", JSON.stringify(dataToSend, null, 2));
-        
-        // Try different approaches to ensure Pipedream receives the data
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
           headers: { 
@@ -75,14 +86,8 @@ export default function App() {
         });
         
         const responseText = await response.text();
-        console.log("Raw response:", responseText);
         
-        // Check if the response is the template (indicating empty data was received)
         if (responseText.includes("TASK: \nAUDIENCE: \nTONE:")) {
-          console.error("Pipedream received empty data!");
-          console.log("Data we tried to send:", dataToSend);
-          
-          // Try to display what we attempted to send
           const debugPrompt = `
 DEBUG: Data not received by Pipedream. Here's what we tried to send:
 
@@ -92,9 +97,7 @@ TONE: ${dataToSend.tone}
 INCLUDE: ${dataToSend.include}
 AVOID: ${dataToSend.avoid}
 FORMAT: ${dataToSend.format}
-CONTEXT: ${dataToSend.context}
-
-Check the browser console for more details.`;
+CONTEXT: ${dataToSend.context}`;
           setFinalPrompt(debugPrompt);
           return;
         }
@@ -102,10 +105,7 @@ Check the browser console for more details.`;
         let data;
         try {
           data = JSON.parse(responseText);
-          console.log("Parsed response:", data);
         } catch (e) {
-          console.error("Failed to parse response:", e);
-          // If it's not JSON, just use the text as is
           setFinalPrompt(responseText);
           return;
         }
@@ -113,25 +113,15 @@ Check the browser console for more details.`;
         if (data.finalPrompt) {
           setFinalPrompt(data.finalPrompt);
         } else if (data.body && data.body.finalPrompt) {
-          // Sometimes the response is nested
           setFinalPrompt(data.body.finalPrompt);
         } else {
-          // If we get the template back, show it anyway
           setFinalPrompt(responseText);
         }
       } else {
-        // Move to next question
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
-        // Focus on textarea after state update
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-          }
-        }, 100);
       }
     } catch (err) {
-      console.error("Error details:", err);
       setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
@@ -140,7 +130,6 @@ Check the browser console for more details.`;
 
   const handleBack = () => {
     if (step > 0) {
-      // Save current answer before going back
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -149,19 +138,46 @@ Check the browser console for more details.`;
       
       setStep(step - 1);
       setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
-      // Focus on textarea after state update
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-        }
-      }, 100);
     }
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(finalPrompt)
-      .then(() => alert("Prompt copied to clipboard!"))
-      .catch(() => alert("Failed to copy prompt"));
+    // Fallback for mobile
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(finalPrompt)
+        .then(() => alert("Prompt copied to clipboard!"))
+        .catch(() => {
+          // Fallback method
+          const textArea = document.createElement("textarea");
+          textArea.value = finalPrompt;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            alert("Prompt copied to clipboard!");
+          } catch (err) {
+            alert("Failed to copy prompt");
+          }
+          document.body.removeChild(textArea);
+        });
+    } else {
+      // Fallback method
+      const textArea = document.createElement("textarea");
+      textArea.value = finalPrompt;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert("Prompt copied to clipboard!");
+      } catch (err) {
+        alert("Failed to copy prompt");
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   const startOver = () => {
@@ -174,25 +190,30 @@ Check the browser console for more details.`;
 
   const current = questions[step];
 
-  // Handle textarea focus to ensure visibility on mobile
-  const handleTextareaFocus = (e) => {
-    // Small delay to wait for keyboard to appear
-    setTimeout(() => {
-      e.target.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 300);
-  };
+  // Alternative input method for extreme cases
+  const [useBasicInput, setUseBasicInput] = useState(false);
 
   return (
     <div style={{ 
-      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", 
-      maxWidth: 600, 
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", 
+      maxWidth: "600px", 
+      width: "100%",
       margin: "0 auto", 
-      padding: "24px",
-      minHeight: "100vh",
+      padding: "20px",
       boxSizing: "border-box",
-      WebkitTextSizeAdjust: "100%",
-      textSizeAdjust: "100%",
     }}>
+      {/* Debug info */}
+      {isMobile && (
+        <div style={{ 
+          fontSize: "12px", 
+          color: "#666", 
+          marginBottom: "10px",
+          textAlign: "center" 
+        }}>
+          Mobile detected • {useBasicInput ? "Basic" : "Standard"} input mode
+        </div>
+      )}
+
       {error && (
         <div style={{ 
           background: "#fee", 
@@ -201,16 +222,15 @@ Check the browser console for more details.`;
           marginBottom: "20px",
           borderRadius: "8px",
           fontSize: "14px",
-          boxSizing: "border-box",
         }}>
           {error}
         </div>
       )}
       
       {!finalPrompt ? (
-        <div style={{ textAlign: "center" }}>
+        <div>
           <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
+            <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px", textAlign: "center" }}>
               Question {step + 1} of {questions.length}
             </div>
             <div style={{ 
@@ -231,65 +251,103 @@ Check the browser console for more details.`;
           
           <p style={{ 
             fontSize: "18px", 
-            marginBottom: "12px",
-            lineHeight: "1.4",
-            padding: "0 10px",
+            marginBottom: "16px",
+            textAlign: "center",
+            lineHeight: "1.5",
           }}>
             {current.question}
           </p>
+
+          {/* Toggle for basic input if textarea fails */}
+          {isMobile && (
+            <button
+              onClick={() => setUseBasicInput(!useBasicInput)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#666",
+                fontSize: "12px",
+                textDecoration: "underline",
+                marginBottom: "10px",
+                cursor: "pointer",
+                display: "block",
+                margin: "0 auto 10px",
+              }}
+            >
+              Having trouble typing? Click here
+            </button>
+          )}
+
+          {useBasicInput ? (
+            // Basic input as fallback
+            <input
+              type="text"
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              placeholder="Type your answer here..."
+              style={{
+                width: "100%",
+                padding: "12px",
+                fontSize: "16px",
+                border: "2px solid #ddd",
+                borderRadius: "8px",
+                marginBottom: "16px",
+                WebkitAppearance: "none",
+                outline: "none",
+              }}
+            />
+          ) : (
+            // Standard textarea
+            <textarea
+              ref={textareaRef}
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              placeholder="Type your answer here..."
+              rows={4}
+              style={{
+                width: "100%",
+                padding: "12px",
+                fontSize: "16px",
+                lineHeight: "1.5",
+                border: "2px solid #ddd",
+                borderRadius: "8px",
+                resize: "vertical",
+                marginBottom: "16px",
+                fontFamily: "inherit",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+                outline: "none",
+                display: "block",
+                boxSizing: "border-box",
+                backgroundColor: "#fff",
+                color: "#000",
+              }}
+              onTouchStart={(e) => {
+                e.target.focus();
+              }}
+            />
+          )}
           
-          <textarea
-            ref={textareaRef}
-            rows={4}
-            style={{
-              width: "calc(100% - 20px)",
-              maxWidth: "500px",
-              margin: "0 auto",
-              display: "block",
-              padding: "12px",
-              fontSize: "16px",
-              lineHeight: "1.4",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-              resize: "vertical",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
-              appearance: "none",
-              boxSizing: "border-box",
-              fontFamily: "inherit",
-              WebkitFontSmoothing: "antialiased",
-              MozOsxFontSmoothing: "grayscale",
-              touchAction: "manipulation",
-            }}
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            onFocus={handleTextareaFocus}
-            placeholder="Type your answer here..."
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="sentences"
-            spellCheck="true"
-          />
-          
-          <div style={{ marginTop: "16px", padding: "0 10px" }}>
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            gap: "10px",
+            flexWrap: "wrap" 
+          }}>
             {step > 0 && (
               <button
                 onClick={handleBack}
                 style={{
-                  marginRight: "8px",
-                  background: "#f0f0f0",
-                  color: "#333",
                   padding: "12px 24px",
-                  borderRadius: "8px",
-                  border: "none",
-                  fontWeight: "bold",
                   fontSize: "16px",
+                  fontWeight: "600",
+                  border: "2px solid #ddd",
+                  borderRadius: "8px",
+                  background: "#fff",
+                  color: "#333",
                   cursor: "pointer",
-                  WebkitAppearance: "none",
-                  MozAppearance: "none",
-                  appearance: "none",
-                  touchAction: "manipulation",
-                  WebkitTapHighlightColor: "transparent",
+                  minWidth: "100px",
                 }}
               >
                 Back
@@ -299,19 +357,15 @@ Check the browser console for more details.`;
               onClick={handleNext}
               disabled={!currentInput.trim() || loading}
               style={{
-                background: currentInput.trim() ? "#FF4D80" : "#ccc",
-                color: "white",
                 padding: "12px 24px",
-                borderRadius: "8px",
-                border: "none",
-                fontWeight: "bold",
                 fontSize: "16px",
+                fontWeight: "600",
+                border: "none",
+                borderRadius: "8px",
+                background: currentInput.trim() ? "#FF4D80" : "#ccc",
+                color: "#fff",
                 cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent",
+                minWidth: "120px",
               }}
             >
               {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
@@ -319,49 +373,51 @@ Check the browser console for more details.`;
           </div>
         </div>
       ) : (
-        <div style={{ textAlign: "center" }}>
+        <div>
           <h2 style={{ 
             fontSize: "20px", 
-            marginBottom: "12px",
-            padding: "0 10px",
+            marginBottom: "16px",
+            textAlign: "center",
           }}>
             Here's your GPT-optimized prompt:
           </h2>
-          <pre style={{ 
+          <div style={{ 
             background: "#f6f6f6", 
             padding: "16px", 
             borderRadius: "8px", 
-            whiteSpace: "pre-wrap", 
-            textAlign: "left",
+            marginBottom: "16px",
             maxHeight: "400px",
             overflow: "auto",
-            margin: "0 10px",
-            fontSize: "14px",
-            lineHeight: "1.4",
-            WebkitOverflowScrolling: "touch",
-            boxSizing: "border-box",
           }}>
-            {finalPrompt}
-          </pre>
-          <div style={{ marginTop: "16px", padding: "0 10px" }}>
+            <pre style={{ 
+              whiteSpace: "pre-wrap", 
+              margin: 0,
+              fontSize: "14px",
+              lineHeight: "1.5",
+              fontFamily: "monospace",
+            }}>
+              {finalPrompt}
+            </pre>
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            gap: "10px",
+            flexWrap: "wrap",
+            marginBottom: "20px",
+          }}>
             <button
               onClick={copyPrompt}
               style={{
-                marginRight: "8px",
-                marginBottom: "8px",
-                background: "#00C2A8",
-                color: "white",
                 padding: "12px 20px",
-                borderRadius: "8px",
-                border: "none",
-                fontWeight: "bold",
                 fontSize: "16px",
+                fontWeight: "600",
+                border: "none",
+                borderRadius: "8px",
+                background: "#00C2A8",
+                color: "#fff",
                 cursor: "pointer",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent",
               }}
             >
               Copy Prompt
@@ -369,72 +425,65 @@ Check the browser console for more details.`;
             <button
               onClick={startOver}
               style={{
-                marginRight: "8px",
-                marginBottom: "8px",
-                background: "#f0f0f0",
-                color: "#333",
                 padding: "12px 20px",
-                borderRadius: "8px",
-                border: "none",
-                fontWeight: "bold",
                 fontSize: "16px",
+                fontWeight: "600",
+                border: "2px solid #ddd",
+                borderRadius: "8px",
+                background: "#fff",
+                color: "#333",
                 cursor: "pointer",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent",
               }}
             >
               Start Over
             </button>
           </div>
           
-          <div style={{ marginTop: "16px", padding: "0 10px" }}>
-            <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>Open in:</p>
-            <a
-              href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ 
-                marginRight: "8px",
-                color: "#FF4D80",
-                textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "16px",
-              }}
-            >
-              ChatGPT
-            </a>
-            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
-            <a 
-              href="https://claude.ai" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ 
-                marginRight: "8px",
-                color: "#FF4D80",
-                textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "16px",
-              }}
-            >
-              Claude
-            </a>
-            <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
-            <a 
-              href="https://gemini.google.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ 
-                color: "#FF4D80",
-                textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "16px",
-              }}
-            >
-              Gemini
-            </a>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
+              Open in:
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+              <a
+                href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ 
+                  color: "#FF4D80",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                  fontSize: "16px",
+                }}
+              >
+                ChatGPT
+              </a>
+              <a 
+                href="https://claude.ai" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  color: "#FF4D80",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                  fontSize: "16px",
+                }}
+              >
+                Claude
+              </a>
+              <a 
+                href="https://gemini.google.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ 
+                  color: "#FF4D80",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                  fontSize: "16px",
+                }}
+              >
+                Gemini
+              </a>
+            </div>
           </div>
         </div>
       )}

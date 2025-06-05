@@ -47,15 +47,7 @@ export default function App() {
 
         setLoading(true);
 
-        const dataToSend = {
-          task: updatedAnswers.task || "",
-          audience: updatedAnswers.audience || "",
-          tone: updatedAnswers.tone || "",
-          include: updatedAnswers.include || "",
-          avoid: updatedAnswers.avoid || "",
-          format: updatedAnswers.format || "",
-          context: updatedAnswers.context || ""
-        };
+        const dataToSend = { ...updatedAnswers };
 
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
@@ -123,68 +115,35 @@ export default function App() {
       padding: 24,
       position: "relative"
     }}>
-      {/* existing unchanged JSX content here */}
+      <div style={{ maxWidth: 600, width: "100%" }}>
+        {error && <div style={{ background: "#fee", color: "#c00", padding: 12, marginBottom: 20, borderRadius: 8, fontSize: 14, textAlign: "center" }}>{error}</div>}
+
+        {!finalPrompt ? (
+          <div style={{ textAlign: "center" }}>
+            <p>{current.question}</p>
+            <textarea rows={4} value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} placeholder="Type your answer here..." />
+            <div>
+              {step > 0 && <button onClick={handleBack}>Back</button>}
+              <button onClick={handleNext} disabled={!currentInput.trim() || loading}>
+                {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center" }}>
+            <pre>{finalPrompt}</pre>
+            <button onClick={copyPrompt}>Copy Prompt</button>
+            <button onClick={startOver}>Start Over</button>
+          </div>
+        )}
+      </div>
 
       {showPaywall && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.8)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-          padding: 20
-        }}>
-          <div style={{
-            background: "#fff",
-            padding: "3rem",
-            borderRadius: 16,
-            maxWidth: 500,
-            width: "90%",
-            textAlign: "center",
-            position: "relative"
-          }}>
-            <h2 style={{ fontSize: 32, marginBottom: 16 }}>🚀 Unlock Unlimited Prompts</h2>
-            <p style={{ fontSize: 18, color: "#666", marginBottom: 32 }}>
-              You've used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
-            </p>
-            <a
-              href="https://buy.stripe.com/8wX2cN54XDg331Ae6AfEk0c"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-block",
-                padding: "18px 40px",
-                fontSize: 18,
-                background: "#FF4D80",
-                color: "white",
-                borderRadius: 8,
-                textDecoration: "none",
-                fontWeight: "bold",
-                marginBottom: 16
-              }}
-            >
-              Get Unlimited Access
-            </a>
-            <button
-              onClick={() => setShowPaywall(false)}
-              style={{
-                display: "block",
-                margin: "0 auto",
-                background: "none",
-                border: "none",
-                color: "#666",
-                cursor: "pointer",
-                fontSize: 14,
-                textDecoration: "underline"
-              }}
-            >
-              Maybe later
-            </button>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0, 0, 0, 0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div style={{ background: "#fff", padding: "3rem", borderRadius: 16, maxWidth: 500, width: "90%", textAlign: "center" }}>
+            <h2>🚀 Unlock Unlimited Prompts</h2>
+            <a href="https://buy.stripe.com/8wX2cN54XDg331Ae6AfEk0c" target="_blank" rel="noopener noreferrer">Get Unlimited Access</a>
+            <button onClick={() => setShowPaywall(false)}>Maybe later</button>
           </div>
         </div>
       )}

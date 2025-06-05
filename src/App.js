@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function App() {
   const questions = [
@@ -18,12 +18,26 @@ export default function App() {
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const editableRef = useRef(null);
+
+  // Handle input changes for contenteditable
+  const handleInputChange = () => {
+    if (editableRef.current) {
+      setCurrentInput(editableRef.current.innerText);
+    }
+  };
+
+  // Update contenteditable when navigating
+  useEffect(() => {
+    if (editableRef.current) {
+      editableRef.current.innerText = currentInput;
+    }
+  }, [step]);
 
   const handleNext = async () => {
     try {
       setError("");
       
-      // Save current answer with the current input
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -32,10 +46,8 @@ export default function App() {
       setAnswers(updatedAnswers);
 
       if (step === questions.length - 1) {
-        // Last question - generate prompt
         setLoading(true);
         
-        // Create form data exactly as expected
         const dataToSend = {
           task: updatedAnswers.task || "",
           audience: updatedAnswers.audience || "",
@@ -57,7 +69,6 @@ export default function App() {
         
         const responseText = await response.text();
         
-        // Check if the response is the template (indicating empty data was received)
         if (responseText.includes("TASK: \nAUDIENCE: \nTONE:")) {
           const debugPrompt = `
 DEBUG: Data not received by Pipedream. Here's what we tried to send:
@@ -68,9 +79,7 @@ TONE: ${dataToSend.tone}
 INCLUDE: ${dataToSend.include}
 AVOID: ${dataToSend.avoid}
 FORMAT: ${dataToSend.format}
-CONTEXT: ${dataToSend.context}
-
-Check the browser console for more details.`;
+CONTEXT: ${dataToSend.context}`;
           setFinalPrompt(debugPrompt);
           return;
         }
@@ -79,7 +88,6 @@ Check the browser console for more details.`;
         try {
           data = JSON.parse(responseText);
         } catch (e) {
-          // If it's not JSON, just use the text as is
           setFinalPrompt(responseText);
           return;
         }
@@ -87,14 +95,11 @@ Check the browser console for more details.`;
         if (data.finalPrompt) {
           setFinalPrompt(data.finalPrompt);
         } else if (data.body && data.body.finalPrompt) {
-          // Sometimes the response is nested
           setFinalPrompt(data.body.finalPrompt);
         } else {
-          // If we get the template back, show it anyway
           setFinalPrompt(responseText);
         }
       } else {
-        // Move to next question
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
       }
@@ -107,7 +112,6 @@ Check the browser console for more details.`;
 
   const handleBack = () => {
     if (step > 0) {
-      // Save current answer before going back
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
@@ -120,9 +124,23 @@ Check the browser console for more details.`;
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(finalPrompt)
-      .then(() => alert("Prompt copied to clipboard!"))
-      .catch(() => alert("Failed to copy prompt"));
+    // Create a temporary textarea to copy from
+    const textarea = document.createElement('textarea');
+    textarea.value = finalPrompt;
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    
+    try {
+      textarea.select();
+      textarea.setSelectionRange(0, 99999); // For mobile devices
+      document.execCommand('copy');
+      alert("Prompt copied to clipboard!");
+    } catch (err) {
+      alert("Failed to copy. Please select and copy manually.");
+    }
+    
+    document.body.removeChild(textarea);
   };
 
   const startOver = () => {
@@ -135,40 +153,12 @@ Check the browser console for more details.`;
 
   const current = questions[step];
 
-  // Mobile-friendly styles
-  const textareaStyle = {
-    width: "100%",
-    padding: "12px",
-    fontSize: "16px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    fontFamily: "inherit",
-    lineHeight: "1.4",
-    WebkitAppearance: "none",
-    appearance: "none",
-    resize: "vertical",
-    boxSizing: "border-box",
-    touchAction: "manipulation",
-  };
-
-  const buttonStyle = {
-    padding: "12px 24px",
-    fontSize: "16px",
-    borderRadius: "8px",
-    border: "none",
-    fontWeight: "bold",
-    cursor: "pointer",
-    WebkitAppearance: "none",
-    appearance: "none",
-    touchAction: "manipulation",
-  };
-
   return (
     <div style={{ 
       fontFamily: "Inter, system-ui, sans-serif", 
       maxWidth: 600, 
       margin: "0 auto", 
-      padding: 24,
+      padding: "20px",
       boxSizing: "border-box",
     }}>
       {error && (
@@ -185,9 +175,9 @@ Check the browser console for more details.`;
       )}
       
       {!finalPrompt ? (
-        <div style={{ textAlign: "center" }}>
+        <div>
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 8, textAlign: "center" }}>
               Question {step + 1} of {questions.length}
             </div>
             <div style={{ 
@@ -206,28 +196,57 @@ Check the browser console for more details.`;
             </div>
           </div>
           
-          <p style={{ fontSize: 18, marginBottom: 16, lineHeight: 1.4 }}>
+          <p style={{ fontSize: 18, marginBottom: 16, textAlign: "center", lineHeight: 1.4 }}>
             {current.question}
           </p>
           
-          <textarea
-            rows={4}
-            style={textareaStyle}
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            placeholder="Type your answer here..."
-            autoComplete="off"
+          {/* ContentEditable div instead of textarea */}
+          <div
+            ref={editableRef}
+            contentEditable
+            onInput={handleInputChange}
+            style={{
+              width: "100%",
+              minHeight: "100px",
+              padding: "12px",
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "2px solid #ddd",
+              background: "#fff",
+              marginBottom: "16px",
+              lineHeight: "1.4",
+              outline: "none",
+              WebkitUserSelect: "text",
+              userSelect: "text",
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+            }}
+            data-placeholder="Type your answer here..."
+            suppressContentEditableWarning={true}
           />
           
-          <div style={{ marginTop: 16 }}>
+          {/* CSS for placeholder */}
+          <style>{`
+            div[contenteditable]:empty:before {
+              content: attr(data-placeholder);
+              color: #999;
+            }
+          `}</style>
+          
+          <div style={{ textAlign: "center" }}>
             {step > 0 && (
               <button
                 onClick={handleBack}
                 style={{
-                  ...buttonStyle,
                   marginRight: 8,
+                  padding: "12px 24px",
+                  fontSize: "16px",
+                  borderRadius: "8px",
+                  border: "none",
                   background: "#f0f0f0",
                   color: "#333",
+                  fontWeight: "bold",
+                  cursor: "pointer",
                 }}
               >
                 Back
@@ -237,42 +256,92 @@ Check the browser console for more details.`;
               onClick={handleNext}
               disabled={!currentInput.trim() || loading}
               style={{
-                ...buttonStyle,
+                padding: "12px 24px",
+                fontSize: "16px",
+                borderRadius: "8px",
+                border: "none",
                 background: currentInput.trim() ? "#FF4D80" : "#ccc",
                 color: "white",
+                fontWeight: "bold",
                 cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
               }}
             >
               {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
             </button>
           </div>
+
+          {/* Alternative: Button-based input for extreme cases */}
+          <div style={{ marginTop: 40, padding: 20, background: "#f5f5f5", borderRadius: 8 }}>
+            <p style={{ fontSize: 12, color: "#666", marginBottom: 10, textAlign: "center" }}>
+              Having trouble typing? Try voice input or use your device's native keyboard:
+            </p>
+            <button
+              onClick={() => {
+                const userInput = prompt(current.question);
+                if (userInput) {
+                  setCurrentInput(userInput);
+                  if (editableRef.current) {
+                    editableRef.current.innerText = userInput;
+                  }
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "14px",
+                background: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              Click here to use popup input
+            </button>
+          </div>
         </div>
       ) : (
-        <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: 20, marginBottom: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 20, marginBottom: 16, textAlign: "center" }}>
             Here's your GPT-optimized prompt:
           </h2>
-          <pre style={{ 
+          
+          {/* Make the prompt selectable for manual copying */}
+          <div style={{ 
             background: "#f6f6f6", 
             padding: 16, 
             borderRadius: 8, 
-            whiteSpace: "pre-wrap", 
-            textAlign: "left",
+            marginBottom: 16,
             maxHeight: 400,
             overflow: "auto",
-            fontSize: 14,
-            lineHeight: 1.4,
+            WebkitUserSelect: "text",
+            userSelect: "text",
           }}>
-            {finalPrompt}
-          </pre>
-          <div style={{ marginTop: 16 }}>
+            <pre style={{ 
+              whiteSpace: "pre-wrap", 
+              margin: 0,
+              fontSize: 14,
+              lineHeight: 1.4,
+              fontFamily: "monospace",
+              WebkitUserSelect: "text",
+              userSelect: "text",
+            }}>
+              {finalPrompt}
+            </pre>
+          </div>
+          
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
             <button
               onClick={copyPrompt}
               style={{
-                ...buttonStyle,
                 marginRight: 8,
+                padding: "12px 20px",
+                fontSize: "16px",
+                borderRadius: "8px",
+                border: "none",
                 background: "#00C2A8",
                 color: "white",
+                fontWeight: "bold",
+                cursor: "pointer",
               }}
             >
               Copy Prompt
@@ -280,16 +349,21 @@ Check the browser console for more details.`;
             <button
               onClick={startOver}
               style={{
-                ...buttonStyle,
+                padding: "12px 20px",
+                fontSize: "16px",
+                borderRadius: "8px",
+                border: "none",
                 background: "#f0f0f0",
                 color: "#333",
+                fontWeight: "bold",
+                cursor: "pointer",
               }}
             >
               Start Over
             </button>
           </div>
           
-          <div style={{ marginTop: 16 }}>
+          <div style={{ textAlign: "center" }}>
             <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Open in:</p>
             <a
               href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}

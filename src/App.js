@@ -121,10 +121,16 @@ export default function App() {
         {!finalPrompt ? (
           <div style={{ textAlign: "center" }}>
             <p>{current.question}</p>
-            <textarea rows={4} value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} placeholder="Type your answer here..." />
-            <div>
-              {step > 0 && <button onClick={handleBack}>Back</button>}
-              <button onClick={handleNext} disabled={!currentInput.trim() || loading}>
+            <textarea
+              rows={4}
+              style={{ width: "100%", maxWidth: 500, margin: "0 auto", display: "block", padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ccc", resize: "vertical" }}
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              placeholder="Type your answer here..."
+            />
+            <div style={{ marginTop: 16 }}>
+              {step > 0 && <button onClick={handleBack} style={{ marginRight: 8, background: "#f0f0f0", color: "#333", padding: "10px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}>Back</button>}
+              <button onClick={handleNext} disabled={!currentInput.trim() || loading} style={{ background: "#FF4D80", color: "white", padding: "10px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}>
                 {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
               </button>
             </div>

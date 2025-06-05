@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import * as React from "react";
+import { useState } from "react";
 
 export default function App() {
   const questions = [
@@ -13,198 +14,240 @@ export default function App() {
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [currentInput, setCurrentInput] = useState("");
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleNext = async () => {
-    const currentAnswer = document.getElementById("answer-input").value;
-    
-    const updatedAnswers = {
-      ...answers,
-      [questions[step].id]: currentAnswer,
-    };
-    
-    setAnswers(updatedAnswers);
-
-    if (step === questions.length - 1) {
-      setLoading(true);
+    try {
+      setError("");
       
-      try {
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
+      
+      setAnswers(updatedAnswers);
+
+      if (step === questions.length - 1) {
+        setLoading(true);
+        
+        const dataToSend = {
+          task: updatedAnswers.task || "",
+          audience: updatedAnswers.audience || "",
+          tone: updatedAnswers.tone || "",
+          include: updatedAnswers.include || "",
+          avoid: updatedAnswers.avoid || "",
+          format: updatedAnswers.format || "",
+          context: updatedAnswers.context || ""
+        };
+        
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
+            "Accept": "application/json",
           },
-          body: JSON.stringify(updatedAnswers),
+          body: JSON.stringify(dataToSend),
         });
         
         const responseText = await response.text();
-        setFinalPrompt(responseText);
-      } catch (err) {
-        setFinalPrompt("Error generating prompt. Please try again.");
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          setFinalPrompt(responseText);
+          return;
+        }
+        
+        if (data.finalPrompt) {
+          setFinalPrompt(data.finalPrompt);
+        } else if (data.body && data.body.finalPrompt) {
+          setFinalPrompt(data.body.finalPrompt);
+        } else {
+          setFinalPrompt(responseText);
+        }
+      } else {
+        setStep(step + 1);
+        setCurrentInput(answers[questions[step + 1]?.id] || "");
       }
-      
+    } catch (err) {
+      setError(`Error: ${err.message}`);
+    } finally {
       setLoading(false);
-    } else {
-      setStep(step + 1);
-      document.getElementById("answer-input").value = answers[questions[step + 1]?.id] || "";
     }
   };
 
   const handleBack = () => {
     if (step > 0) {
-      const currentAnswer = document.getElementById("answer-input").value;
-      setAnswers({...answers, [questions[step].id]: currentAnswer});
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
+      setAnswers(updatedAnswers);
+      
       setStep(step - 1);
-      setTimeout(() => {
-        document.getElementById("answer-input").value = answers[questions[step - 1].id] || "";
-      }, 10);
+      setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
     }
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(finalPrompt).then(() => alert("Prompt copied to clipboard!"));
+    navigator.clipboard.writeText(finalPrompt)
+      .then(() => alert("Prompt copied to clipboard!"))
+      .catch(() => alert("Failed to copy prompt"));
   };
 
   const startOver = () => {
     setStep(0);
     setAnswers({});
+    setCurrentInput("");
     setFinalPrompt("");
+    setError("");
   };
 
-  if (finalPrompt) {
-    return (
-      <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px" }}>
-        <h2 style={{ fontSize: "20px", marginBottom: "12px", textAlign: "center" }}>
-          Here's your GPT-optimized prompt:
-        </h2>
-        <pre style={{ 
-          background: "#f6f6f6", 
-          padding: "16px", 
-          borderRadius: "8px", 
-          marginBottom: "16px",
-          whiteSpace: "pre-wrap", 
-          fontSize: "14px", 
-          lineHeight: "1.4",
-          maxHeight: "400px",
-          overflow: "auto"
-        }}>
-          {finalPrompt}
-        </pre>
-        <div style={{ textAlign: "center" }}>
-          <button 
-            onClick={copyPrompt} 
-            style={{ 
-              marginRight: "8px", 
-              padding: "10px 16px", 
-              fontSize: "16px",
-              background: "#00C2A8",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "bold",
-              cursor: "pointer"
-            }}
-          >
-            Copy Prompt
-          </button>
-          <button 
-            onClick={startOver} 
-            style={{ 
-              padding: "10px 16px",
-              fontSize: "16px",
-              background: "#f0f0f0",
-              color: "#333",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "bold",
-              cursor: "pointer"
-            }}
-          >
-            Start Over
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const current = questions[step];
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: "600px", margin: "0 auto", padding: "24px" }}>
-      <div style={{ marginBottom: "20px", textAlign: "center" }}>
-        <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
-          Question {step + 1} of {questions.length}
+    <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 600, margin: "0 auto", padding: 24 }}>
+      {error && (
+        <div style={{ 
+          background: "#fee", 
+          color: "#c00", 
+          padding: 12, 
+          marginBottom: 20,
+          borderRadius: 8,
+          fontSize: 14
+        }}>
+          {error}
         </div>
-        <div style={{ width: "100%", height: "8px", background: "#e0e0e0", borderRadius: "4px", overflow: "hidden" }}>
-          <div style={{ 
-            width: `${((step + 1) / questions.length) * 100}%`, 
-            height: "100%", 
-            background: "#FF4D80",
-            transition: "width 0.3s ease"
-          }} />
-        </div>
-      </div>
+      )}
       
-      <p style={{ fontSize: "18px", marginBottom: "12px", textAlign: "center" }}>
-        {questions[step].question}
-      </p>
-      
-      <textarea
-        id="answer-input"
-        placeholder="Type your answer here..."
-        rows={4}
-        style={{
-          width: "100%",
-          maxWidth: "500px",
-          margin: "0 auto 16px auto",
-          display: "block",
-          padding: "12px",
-          fontSize: "16px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          boxSizing: "border-box",
-          resize: "vertical",
-          fontFamily: "inherit",
-          lineHeight: "1.4"
-        }}
-      />
-      
-      <div style={{ textAlign: "center", marginTop: "16px" }}>
-        {step > 0 && (
-          <button 
-            onClick={handleBack} 
-            style={{ 
-              marginRight: "8px", 
-              padding: "10px 20px",
-              fontSize: "16px",
-              background: "#f0f0f0",
-              color: "#333",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "bold",
-              cursor: "pointer"
+      {!finalPrompt ? (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
+              Question {step + 1} of {questions.length}
+            </div>
+            <div style={{ 
+              width: "100%", 
+              height: 8, 
+              background: "#e0e0e0", 
+              borderRadius: 4,
+              overflow: "hidden"
+            }}>
+              <div style={{ 
+                width: `${((step + 1) / questions.length) * 100}%`, 
+                height: "100%", 
+                background: "#FF4D80",
+                transition: "width 0.3s ease"
+              }} />
+            </div>
+          </div>
+          
+          <p style={{ fontSize: 18, marginBottom: 12 }}>{current.question}</p>
+          <textarea
+            rows={4}
+            style={{
+              width: "100%",
+              maxWidth: 500,
+              margin: "0 auto",
+              display: "block",
+              padding: 12,
+              fontSize: 16,
+              borderRadius: 8,
+              border: "1px solid #ccc",
+              resize: "vertical",
             }}
-          >
-            Back
-          </button>
-        )}
-        <button 
-          onClick={handleNext} 
-          disabled={loading}
-          style={{ 
-            padding: "10px 20px",
-            fontSize: "16px",
-            background: "#FF4D80",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            fontWeight: "bold",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
-        </button>
-      </div>
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)}
+            placeholder="Type your answer here..."
+          />
+          
+          <div style={{ marginTop: 16 }}>
+            {step > 0 && (
+              <button
+                onClick={handleBack}
+                style={{
+                  marginRight: 8,
+                  background: "#f0f0f0",
+                  color: "#333",
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                Back
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              disabled={!currentInput.trim() || loading}
+              style={{
+                background: currentInput.trim() ? "#FF4D80" : "#ccc",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: 8,
+                border: "none",
+                fontWeight: "bold",
+                cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
+              }}
+            >
+              {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ fontSize: 20, marginBottom: 12 }}>Here's your GPT-optimized prompt:</h2>
+          <pre style={{ 
+            background: "#f6f6f6", 
+            padding: 16, 
+            borderRadius: 8, 
+            whiteSpace: "pre-wrap", 
+            textAlign: "left",
+            maxHeight: 400,
+            overflow: "auto"
+          }}>
+            {finalPrompt}
+          </pre>
+          <div style={{ marginTop: 16 }}>
+            <button
+              onClick={copyPrompt}
+              style={{
+                marginRight: 8,
+                background: "#00C2A8",
+                color: "white",
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              Copy Prompt
+            </button>
+            <button
+              onClick={startOver}
+              style={{
+                marginRight: 8,
+                background: "#f0f0f0",
+                color: "#333",
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              Start Over
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

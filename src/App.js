@@ -71,6 +71,9 @@ export default function App() {
         setPromptCount(newCount);
         sessionStorage.setItem('izzyPromptCount', newCount.toString());
 
+        if (newCount >= 2) {
+          setShowPaywall(true);
+        }
       } else {
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
@@ -137,7 +140,7 @@ export default function App() {
           </div>
         ) : (
           <div style={{ textAlign: "center" }}>
-            <pre>{finalPrompt}</pre>
+            <pre style={{ whiteSpace: "pre-wrap" }}>{finalPrompt}</pre>
             <button onClick={copyPrompt}>Copy Prompt</button>
             <button onClick={startOver}>Start Over</button>
           </div>

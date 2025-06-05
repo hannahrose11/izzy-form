@@ -1,5 +1,4 @@
 {
   "buildCommand": "npm install && npm run build",
-  "outputDirectory": "public",
-  "framework": "create-react-app"
+  "outputDirectory": "build"
 }

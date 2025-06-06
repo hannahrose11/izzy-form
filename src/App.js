@@ -151,7 +151,7 @@ export default function App() {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0, 0, 0, 0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
           <div style={{ background: "#fff", padding: "3rem", borderRadius: 16, maxWidth: 500, width: "90%", textAlign: "center" }}>
             <h2>🚀 Unlock Unlimited Prompts</h2>
-            <a href="https://buy.stripe.com/8wX2cN54XDg331Ae6AfEk0c" target="_blank" rel="noopener noreferrer">Get Unlimited Access</a>
+            <a href="https://buy.stripe.com/8x2cN54XDg331Ae6AHfEk0c" target="_blank" rel="noopener noreferrer">Get Unlimited Access</a>
             <button onClick={() => setShowPaywall(false)}>Maybe later</button>
           </div>
         </div>

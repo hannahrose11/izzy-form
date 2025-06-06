@@ -22,7 +22,7 @@ export default function App() {
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('izzyPromptCount');
+    const saved = localStorage.getItem('izzyPromptCount');
     if (saved) {
       setPromptCount(parseInt(saved));
     }
@@ -69,7 +69,7 @@ export default function App() {
 
         const newCount = promptCount + 1;
         setPromptCount(newCount);
-        sessionStorage.setItem('izzyPromptCount', newCount.toString());
+        localStorage.setItem('izzyPromptCount', newCount.toString());
 
         if (newCount >= 2) {
           setShowPaywall(true);
